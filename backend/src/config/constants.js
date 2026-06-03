@@ -5,8 +5,8 @@ export const TOPICS = Object.freeze({
   mongodb: 'MongoDB',
   python: 'Python',
   sql: 'SQL',
-  react: 'React',
-  express: 'Express'
+  reactjs: 'React.js',
+  expressjs: 'Express.js'
 });
 
 export const DIFFICULTIES = Object.freeze({

@@ -1,6 +1,7 @@
 import { Session } from '../models/Session.js';
 import { ApiError } from '../utils/ApiError.js';
-import { generateAssistance } from './gemini.service.js';
+import { logger } from '../utils/logger.js';
+import { generateAssistance, generateEvaluation } from './gemini.service.js';
 
 /**
  * Persist a fully generated session (questions already produced by Gemini).
@@ -92,13 +93,74 @@ export async function requestAssistance(userId, sessionId, order) {
   return { content, order };
 }
 
-/** Mark a session complete and return its full summary. */
+/**
+ * Mark a session complete. If evaluation hasn't started yet, flip it to
+ * `in_progress` and signal the caller to kick off background scoring.
+ * @returns {Promise<{ session: object, startEvaluation: boolean }>}
+ */
 export async function completeSession(userId, sessionId) {
   const session = await getOwnedSession(userId, sessionId);
+
   if (session.status !== 'completed') {
     session.status = 'completed';
     session.completedAt = new Date();
-    await session.save();
   }
-  return session.toJSON();
+
+  let startEvaluation = false;
+  if (!session.evaluation || session.evaluation.status === 'not_started' || session.evaluation.status === 'failed') {
+    session.evaluation.status = 'in_progress';
+    session.evaluation.startedAt = new Date();
+    startEvaluation = true;
+  }
+
+  await session.save();
+  return { session: session.toJSON(), startEvaluation };
+}
+
+/**
+ * Background job: score every question with Gemini and persist the totals.
+ * Answered questions are graded by the AI (in parallel); empty answers are
+ * scored 0 without an AI call. Reloads the session fresh to avoid stale state.
+ */
+export async function runEvaluation(userId, sessionId) {
+  const session = await getOwnedSession(userId, sessionId);
+  if (session.evaluation.status === 'completed') return; // idempotent
+
+  try {
+    const results = await Promise.all(
+      session.questions.map(async (q) => {
+        const answer = (q.userAnswer ?? '').trim();
+        // Skip the AI call for unanswered/empty questions — faster + cheaper.
+        if (!answer) {
+          return { order: q.order, score: 0, feedback: 'No answer was submitted for this question.' };
+        }
+        const { score, feedback } = await generateEvaluation({
+          topic: session.topic,
+          difficulty: session.difficulty,
+          question: q.prompt,
+          answer,
+        });
+        return { order: q.order, score, feedback };
+      })
+    );
+
+    let total = 0;
+    for (const r of results) {
+      const q = session.questions.find((item) => item.order === r.order);
+      if (q) q.evaluation = { scored: true, score: r.score, feedback: r.feedback };
+      total += r.score;
+    }
+
+    session.evaluation.status = 'completed';
+    session.evaluation.totalScore = total;
+    session.evaluation.completedAt = new Date();
+    await session.save();
+    logger.info('Session evaluation completed', { sessionId, total });
+  } catch (err) {
+    logger.error('Session evaluation failed', { sessionId, message: err?.message });
+    session.evaluation.status = 'failed';
+    session.evaluation.error = err?.message ?? 'Evaluation failed';
+    await session.save().catch(() => {});
+    throw err;
+  }
 }

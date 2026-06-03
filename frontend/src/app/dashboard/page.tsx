@@ -108,7 +108,7 @@ export default function DashboardPage() {
 
           <div className="mt-6 flex items-center gap-3">
             <Button onClick={handleGenerate} loading={generating} disabled={!topic || !difficulty}>
-              {generating ? 'Generating questions…' : 'Generate 5 questions'}
+              {generating ? 'Generating questions…' : 'Generate questions'}
             </Button>
             {generating && <span className="text-sm text-slate-500">Streaming from Gemini…</span>}
           </div>

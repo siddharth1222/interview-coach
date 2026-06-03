@@ -6,6 +6,43 @@ import { TOPICS, DIFFICULTIES, QUESTIONS_PER_SESSION } from '../config/constants
 
 const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
+/**
+ * Translate an error from the Gemini SDK into an ApiError with an honest,
+ * user-facing message. Upstream availability/quota problems are NOT our fault,
+ * so we surface them as 503/429 with a clear "try again" message instead of a
+ * generic 500. Anything else falls back to a 500 with `fallback`.
+ *
+ * @param {unknown} err
+ * @param {string} fallback - message used for genuinely unexpected failures
+ * @returns {ApiError}
+ */
+function mapGeminiError(err, fallback) {
+  // The SDK surfaces the HTTP status in different shapes; the upstream payload
+  // is also embedded in the message, so we inspect both.
+  const raw = `${err?.status ?? ''} ${err?.code ?? ''} ${err?.message ?? ''}`.toUpperCase();
+
+  const isOverloaded =
+    raw.includes('503') ||
+    raw.includes('UNAVAILABLE') ||
+    raw.includes('OVERLOADED') ||
+    raw.includes('HIGH DEMAND');
+
+  const isRateLimited =
+    raw.includes('429') || raw.includes('RESOURCE_EXHAUSTED') || raw.includes('QUOTA');
+
+  if (isOverloaded) {
+    return ApiError.serviceUnavailable(
+      'The AI service is currently experiencing high demand. Please try again in a few moments.'
+    );
+  }
+  if (isRateLimited) {
+    return ApiError.tooMany(
+      'The AI service rate limit was reached. Please wait a moment and try again.'
+    );
+  }
+  return ApiError.internal(fallback);
+}
+
 /** Schema forcing the model to return exactly the questions array we expect. */
 const QUESTIONS_SCHEMA = {
   type: Type.OBJECT,
@@ -65,7 +102,7 @@ export async function streamQuestions({ topic, difficulty, onChunk }) {
     }
   } catch (err) {
     logger.error('Gemini question generation failed', { message: err?.message });
-    throw ApiError.internal('Failed to generate questions from the AI service');
+    throw mapGeminiError(err, 'Failed to generate questions from the AI service');
   }
 
   const questions = parseQuestions(raw);
@@ -135,6 +172,62 @@ export async function generateAssistance({ topic, difficulty, question, userAnsw
     return text;
   } catch (err) {
     logger.error('Gemini assistance failed', { message: err?.message });
-    throw ApiError.internal('Failed to get AI assistance');
+    throw mapGeminiError(err, 'Failed to get AI assistance');
+  }
+}
+
+/** Schema forcing a numeric score (0-10) plus short feedback. */
+const EVALUATION_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    score: { type: Type.INTEGER, minimum: 0, maximum: 10 },
+    feedback: { type: Type.STRING },
+  },
+  required: ['score', 'feedback'],
+};
+
+/**
+ * Evaluates a single answer and returns a score out of 10 with brief feedback.
+ * Callers must pass a non-empty, trimmed answer (empty answers are scored 0
+ * without an AI call by the session service).
+ *
+ * @param {{ topic: string, difficulty: string, question: string, answer: string }} args
+ * @returns {Promise<{ score: number, feedback: string }>}
+ */
+export async function generateEvaluation({ topic, difficulty, question, answer }) {
+  const topicLabel = TOPICS[topic];
+  const difficultyLabel = DIFFICULTIES[difficulty];
+
+  const prompt = [
+    `You are a strict but fair technical interviewer grading a ${difficultyLabel}-level`,
+    `"${topicLabel}" interview answer.`,
+    ``,
+    `QUESTION: ${question}`,
+    `CANDIDATE ANSWER: """${answer}"""`,
+    ``,
+    `Score the answer from 0 to 10 based on correctness, completeness, clarity, and depth`,
+    `appropriate for the ${difficultyLabel} level. Provide 1-2 sentences of constructive`,
+    `feedback explaining the score and how to improve. Be concise and objective.`,
+  ].join('\n');
+
+  try {
+    const response = await ai.models.generateContent({
+      model: env.GEMINI_MODEL,
+      contents: prompt,
+      config: {
+        temperature: 0.2,
+        responseMimeType: 'application/json',
+        responseSchema: EVALUATION_SCHEMA,
+      },
+    });
+
+    const parsed = JSON.parse(response.text ?? '{}');
+    let score = Math.round(Number(parsed.score));
+    if (!Number.isFinite(score)) score = 0;
+    score = Math.max(0, Math.min(10, score));
+    return { score, feedback: String(parsed.feedback ?? '').trim() };
+  } catch (err) {
+    logger.error('Gemini evaluation failed', { message: err?.message });
+    throw mapGeminiError(err, 'Failed to evaluate answer');
   }
 }

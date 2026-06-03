@@ -84,6 +84,15 @@ export const requestAssistance = asyncHandler(async (req, res) => {
 });
 
 export const completeSession = asyncHandler(async (req, res) => {
-  const session = await sessionService.completeSession(req.userId, req.params.sessionId);
+  const { sessionId } = req.params;
+  const { session, startEvaluation } = await sessionService.completeSession(req.userId, sessionId);
+
+  // Kick off scoring in the background — do NOT await; respond immediately.
+  if (startEvaluation) {
+    sessionService
+      .runEvaluation(req.userId, sessionId)
+      .catch((err) => logger.error('Background evaluation error', { message: err?.message }));
+  }
+
   res.json({ success: true, session });
 });

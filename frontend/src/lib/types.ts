@@ -20,12 +20,30 @@ export interface Assistance {
   usedAt?: string;
 }
 
+export interface QuestionEvaluation {
+  scored: boolean;
+  score: number | null;
+  feedback: string;
+}
+
 export interface Question {
   order: number;
   prompt: string;
   userAnswer: string;
   answeredAt?: string;
   assistance: Assistance;
+  evaluation?: QuestionEvaluation;
+}
+
+export type EvaluationStatus = 'not_started' | 'in_progress' | 'completed' | 'failed';
+
+export interface Evaluation {
+  status: EvaluationStatus;
+  totalScore: number | null;
+  maxScore: number;
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
 }
 
 export interface Session {
@@ -36,6 +54,7 @@ export interface Session {
   questions: Question[];
   answeredCount: number;
   assistanceUsedCount: number;
+  evaluation?: Evaluation;
   createdAt: string;
   completedAt?: string;
 }

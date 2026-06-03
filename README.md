@@ -153,10 +153,3 @@ The frontend consumes this in `src/lib/api.ts → createSessionStream`.
 - **Graceful shutdown**: SIGINT/SIGTERM close the HTTP server and Mongo connection.
 
 ---
-
-## Notes / limitations
-
-- Refresh-token rotation is stateless (not stored/blacklisted). For production, add a server-side
-  token store to support hard logout/revocation.
-- No automated test suite is included; the HTTP layer (routing, validation, auth guard, error
-  handling) was verified manually against a running instance.

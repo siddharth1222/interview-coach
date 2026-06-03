@@ -11,6 +11,16 @@ const assistanceSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/** AI evaluation of a single answer (score out of 10 + short feedback). */
+const questionEvaluationSchema = new mongoose.Schema(
+  {
+    scored: { type: Boolean, default: false },
+    score: { type: Number, default: null, min: 0, max: 10 },
+    feedback: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 const questionSchema = new mongoose.Schema(
   {
     order: { type: Number, required: true }, // 0-based position in the session
@@ -18,6 +28,24 @@ const questionSchema = new mongoose.Schema(
     userAnswer: { type: String, default: '' },
     answeredAt: { type: Date },
     assistance: { type: assistanceSchema, default: () => ({}) },
+    evaluation: { type: questionEvaluationSchema, default: () => ({}) },
+  },
+  { _id: false }
+);
+
+/** Session-level evaluation that runs in the background after completion. */
+const evaluationSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['not_started', 'in_progress', 'completed', 'failed'],
+      default: 'not_started',
+    },
+    totalScore: { type: Number, default: null }, // sum of per-question scores
+    maxScore: { type: Number, default: 50 }, // 5 questions x 10
+    startedAt: { type: Date },
+    completedAt: { type: Date },
+    error: { type: String },
   },
   { _id: false }
 );
@@ -43,6 +71,7 @@ const sessionSchema = new mongoose.Schema(
       validate: [(v) => v.length > 0, 'A session must have at least one question'],
     },
     completedAt: { type: Date },
+    evaluation: { type: evaluationSchema, default: () => ({}) },
   },
   { timestamps: true }
 );

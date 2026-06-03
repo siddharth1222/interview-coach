@@ -1,0 +1,13 @@
+{
+  "name": "ai-interview-coach",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI Interview Coach — Next.js + Express + MongoDB + Gemini",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "start:backend": "npm --prefix backend start"
+  }
+}

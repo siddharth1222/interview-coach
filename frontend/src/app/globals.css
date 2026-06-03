@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* Markdown rendering inside AI assistance panels */
+.prose-ai h3 {
+  @apply mt-4 mb-1 text-sm font-semibold uppercase tracking-wide text-brand-700;
+}
+.prose-ai p {
+  @apply my-1 text-sm leading-relaxed text-slate-700;
+}
+.prose-ai ul {
+  @apply my-1 ml-5 list-disc text-sm text-slate-700;
+}
+.prose-ai li {
+  @apply my-0.5;
+}
+.prose-ai a {
+  @apply text-brand-600 underline;
+}
+.prose-ai code {
+  @apply rounded bg-slate-100 px-1 py-0.5 text-xs;
+}

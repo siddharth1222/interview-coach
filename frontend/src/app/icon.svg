@@ -1,0 +1,32 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bg)"/>
+
+  <path
+    d="M128 168C128 137.072 153.072 112 184 112H328C358.928 112 384 137.072 384 168V264C384 294.928 358.928 320 328 320H242L184 368V320C153.072 320 128 294.928 128 264V168Z"
+    fill="white"
+    opacity="0.96"
+  />
+
+  <path d="M256 156L176 192L256 228L336 192L256 156Z" fill="#4F46E5"/>
+  <path d="M208 213V245C208 261 229 274 256 274C283 274 304 261 304 245V213L256 234L208 213Z" fill="#4F46E5"/>
+
+  <path
+    d="M248 250C248 235 258 226 273 226C286 226 296 234 296 247C296 258 290 264 280 270C272 275 268 280 268 288"
+    stroke="#06B6D4"
+    stroke-width="12"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="268" cy="308" r="8" fill="#06B6D4"/>
+
+  <g transform="translate(345 125)">
+    <path d="M24 0L30 18L48 24L30 30L24 48L18 30L0 24L18 18L24 0Z" fill="#FACC15"/>
+  </g>
+</svg>

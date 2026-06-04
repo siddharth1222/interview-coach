@@ -10,7 +10,7 @@ import { Button, Card, Input, Alert } from '@/components/ui';
 export default function RegisterPage() {
   const { register, user } = useAuth();
   const router = useRouter();
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -26,6 +26,12 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
     setFieldErrors({});
+
+    if (form.password !== form.confirmPassword) {
+      setFieldErrors({ confirmPassword: 'Passwords do not match' });
+      return;
+    }
+
     setSubmitting(true);
     try {
       await register(form.name, form.email, form.password);
@@ -71,6 +77,15 @@ export default function RegisterPage() {
             error={fieldErrors.password}
           />
           <p className="text-xs text-slate-400">At least 8 characters, including a letter and a number.</p>
+          <Input
+            label="Confirm password"
+            type="password"
+            autoComplete="new-password"
+            required
+            value={form.confirmPassword}
+            onChange={update('confirmPassword')}
+            error={fieldErrors.confirmPassword}
+          />
           <Button type="submit" loading={submitting} className="w-full">
             Create account
           </Button>
